@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Lumi privacy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #1a2230;
+        --muted: #4a5568;
+        --bg: #ffffff;
+        --line: #d9dee6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e6eaf0;
+          --muted: #b3bcc8;
+          --bg: #12161d;
+          --line: #2c3442;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.55 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+      h1 {
+        font-size: 1.6rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin: 1.75rem 0 0.5rem;
+      }
+      p,
+      li {
+        color: var(--ink);
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 1.5rem;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      footer {
+        margin-top: 2.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Lumi — privacy</h1>
+      <p class="meta">Lumi is Lumina Corp's Microsoft Teams app for Lumina MPP. Updated October 2026.</p>
+
+      <h2>What Lumi is</h2>
+      <p>
+        Lumi brings Lumina MPP project chats to Teams for Lumina Corp staff. It is used only inside Lumina Corp's
+        Microsoft 365 tenant. It relays what you type to Lumi into the project chat you choose, and sends you a message
+        when someone mentions you or replies in a thread you took part in.
+      </p>
+
+      <h2>Your messages</h2>
+      <ul>
+        <li>
+          What you type to Lumi is posted into the project's chat in Lumina Corp's Teams, labelled with your name and
+          “via Lumi”. It is then stored by Microsoft Teams like any other Teams message, under Lumina Corp's Microsoft
+          365 settings.
+        </li>
+        <li>
+          Lumi's own service (the Lumina MPP relay, hosted by Lumina Corp in Microsoft Azure, Australia East) handles
+          message text in memory only while it relays or reads it. It never stores message text and never writes it to
+          logs.
+        </li>
+        <li>
+          Lumi's messages to you contain a short excerpt (at most 300 characters) of the message they are about. They go
+          only to you.
+        </li>
+      </ul>
+
+      <h2>What the relay keeps</h2>
+      <ul>
+        <li>
+          Identifiers and times: your Microsoft Entra object id, the id of your chat with Lumi, which Lumi messages
+          point at which project chat thread, and when things happened.
+        </li>
+        <li>Your Lumi preferences: whether you get messages about thread replies, and the projects you muted.</li>
+        <li>
+          For about ten minutes after you pick a project, which project you picked, so your next messages can go there.
+        </li>
+        <li>Project codes and names from Lumina MPP. Never money, notes, descriptions or files.</li>
+      </ul>
+      <p>
+        These records are kept only as long as Lumi needs them: the project choice expires after ten minutes, the
+        records behind Lumi's messages after 30 days, and the rest is removed when it no longer applies. Diagnostic logs
+        contain no message text, names or tokens and are kept for 30 days.
+      </p>
+
+      <h2>Who can see project chats</h2>
+      <p>
+        Every Lumina Corp staff member can read and post in Lumina MPP project chats, through Lumina MPP and through
+        Lumi. The owners of the Lumina MPP team in Teams and Lumina Corp's Microsoft 365 compliance tools can see them
+        as they can any Teams channel.
+      </p>
+
+      <h2>Your choices</h2>
+      <ul>
+        <li>
+          Type <strong>settings</strong> to Lumi, or use Lumina MPP's Settings › Connections › Microsoft Teams, to turn
+          off messages about thread replies or mute a project. Messages about @mentions stay on.
+        </li>
+        <li>You can block or remove Lumi in Teams; Lumi then sends you nothing.</li>
+        <li>Lumi is not used for advertising and shares nothing with anyone outside Lumina Corp and Microsoft.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>Questions about Lumi and your data: <a href="mailto:it@luminacorp.com">it@luminacorp.com</a>.</p>
+
+      <footer>Lumina Corp · Lumi, the Teams app for Lumina MPP</footer>
+    </main>
+  </body>
+</html>

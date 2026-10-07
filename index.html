@@ -1,0 +1,338 @@
+<!doctype html>
+<!--
+  OWNER: L4 (SPEC-v1.2-teams §3.4.12, V28, G6). The public "Open in MPP" page: published by George as index.html of the
+  public repo Lumina-Corp/mpp-open (GitHub Pages, ADMIN_SETUP §L). Static, no data, no external requests: the MPP ids
+  stay in the URL fragment (#/p/…), which browsers never send to the server. It validates the fragment with a copy of
+  parseDeepLink's rules (src/app/routes.ts + SPEC §4.9's chat / thread; src/app/openPage.test.ts keeps them in step),
+  then forwards to lumina-mpp:/<route>, with a button (the Teams mobile browser needs a tap) and "Copy link".
+  The CSP allows only this file's own script and style, by hash; openPage.test.ts recomputes both hashes.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'sha256-PFOMVuqUopkyJ+AbwA5skJP0efy6KOKDuIKeRC+NGyo='; style-src 'sha256-YtoOz2ZP+9V2SxRoCFgwqDfJmKDd/KHlL9gX6XuDG3E='; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open in Lumina MPP</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1d2433;
+        --muted: #5b6475;
+        --bg: #f5f7fa;
+        --card: #ffffff;
+        --line: #d9dee7;
+        --accent: #3b5bdb;
+        --on-accent: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #e7eaf0;
+          --muted: #a3abba;
+          --bg: #12161d;
+          --card: #1b2029;
+          --line: #323a48;
+          --accent: #91a7ff;
+          --on-accent: #12161d;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 480px;
+        margin: 10vh auto 0;
+        padding: 24px 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 12px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .btn,
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 8px;
+        border: 1px solid var(--accent);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .btn {
+        background: var(--accent);
+        color: var(--on-accent);
+      }
+      button {
+        background: transparent;
+        color: var(--accent);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin: 8px 0 12px;
+      }
+      input {
+        flex: 1;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+        font-size: 14px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Open in Lumina MPP</h1>
+      <p id="msg">Opening Lumina MPP…</p>
+      <p><a id="open" class="btn" href="#" hidden>Open Lumina MPP</a></p>
+      <p id="hint" class="muted" hidden>
+        If nothing happens, Lumina MPP may not be installed on this device. Copy the link and open it where MPP is
+        installed.
+      </p>
+      <div id="copyrow" class="row" hidden>
+        <input id="link" type="text" readonly aria-label="Link to this item in Lumina MPP" />
+        <button id="copy" type="button">Copy link</button>
+      </div>
+      <p id="status" class="muted" role="status"></p>
+    </main>
+    <script>
+      (function () {
+        'use strict';
+        // ---- a copy of parseDeepLink (src/app/routes.ts) + SPEC §4.9's chat / thread; openPage.test.ts compares them
+        // (rev 1c C38: v1.1's Files tab, its params and Settings sections; chat / thread on /issues too)
+        var PROJECT_TABS = ['overview', 'timeline', 'steps', 'notes', 'issues', 'files', 'activity'];
+        var SETTINGS_SECTIONS = [
+          'general',
+          'templates',
+          'people',
+          'workspace',
+          'appearance',
+          'data',
+          'admin',
+          'about',
+          'shortcuts',
+          'emoji',
+          'notifications',
+          'connections',
+          'integrations',
+        ];
+        var ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+        function isChat(v) {
+          return v === '1';
+        }
+        function isThread(v) {
+          return /^(i:i_|s:s_)[0-9a-z]{12}$/.test(v) || /^m:\d{10,20}$/.test(v);
+        }
+        function isId(prefix, v) {
+          return new RegExp('^' + prefix + '_[0-9a-z]{12}$').test(v);
+        }
+        function has(list, v) {
+          return !!v && list.indexOf(v) >= 0;
+        }
+        var PROJECT_PARAMS = {
+          view: function (v) {
+            return v === 'gantt' || v === 'month' || v === 'week';
+          },
+          date: function (v) {
+            return ISO_DATE_RE.test(v);
+          },
+          zoom: function (v) {
+            return v === 'week' || v === 'month' || v === 'quarter' || v === 'year';
+          },
+          step: function (v) {
+            return isId('s', v);
+          },
+          issue: function (v) {
+            return isId('i', v);
+          },
+          note: function (v) {
+            return isId('n', v);
+          },
+          file: function (v) {
+            return isId('f', v);
+          },
+          kind: function (v) {
+            return ['layout', 'measurement', 'other'].indexOf(v) >= 0;
+          },
+          stepf: function (v) {
+            return isId('s', v);
+          },
+          chat: isChat,
+          thread: isThread,
+        };
+        var ISSUES_PARAMS = {
+          view: function (v) {
+            return ['triage', 'open', 'support', 'mine', 'resolved'].indexOf(v) >= 0;
+          },
+          p: function (v) {
+            return isId('p', v);
+          },
+          issue: function (v) {
+            return isId('i', v);
+          },
+          project: function (v) {
+            return isId('p', v);
+          },
+          client: function (v) {
+            return isId('c', v);
+          },
+          chat: isChat,
+          thread: isThread,
+        };
+        function keepParams(search, allowed) {
+          var params = new URLSearchParams(search);
+          var out = new URLSearchParams();
+          var bad = false;
+          params.forEach(function (v, k) {
+            if (bad || !Object.prototype.hasOwnProperty.call(allowed, k)) return;
+            if (!allowed[k](v)) bad = true;
+            else out.set(k, v);
+          });
+          if (bad) return null;
+          var s = out.toString();
+          return s ? '?' + s : '';
+        }
+        function parseDeepLink(url) {
+          var m = /^lumina-mpp:(.*)$/i.exec(url.trim());
+          if (!m) return null;
+          var rest = (m[1] || '').replace(/^\/+/, '');
+          var hashIdx = rest.indexOf('#');
+          var noHash = hashIdx >= 0 ? rest.slice(0, hashIdx) : rest;
+          var qIdx = noHash.indexOf('?');
+          var pathPart = (qIdx >= 0 ? noHash.slice(0, qIdx) : noHash).replace(/\/+$/, '');
+          var search = qIdx >= 0 ? noHash.slice(qIdx) : '';
+          var segs;
+          try {
+            segs =
+              pathPart === ''
+                ? []
+                : pathPart.split('/').map(function (s) {
+                    return decodeURIComponent(s);
+                  });
+          } catch (e) {
+            return null;
+          }
+          for (var i = 0; i < segs.length; i++) {
+            if (segs[i] === '' || segs[i] === '.' || segs[i] === '..') return null;
+          }
+          if (segs.length > 3) return null;
+          var a = segs[0];
+          var b = segs[1];
+          var c = segs[2];
+          var q;
+          if (a === undefined) return '/';
+          if (a === 'p') {
+            if (!b || !isId('p', b)) return null;
+            var tab = c === undefined ? 'overview' : c;
+            if (!has(PROJECT_TABS, tab)) return null;
+            q = keepParams(search, PROJECT_PARAMS);
+            return q === null ? null : '/p/' + b + '/' + tab + q;
+          }
+          if (c !== undefined) return null;
+          switch (a) {
+            case 'timeline':
+            case 'projects':
+            case 'my':
+            case 'setup':
+              return b === undefined ? '/' + a : null;
+            case 'issues':
+              if (b !== undefined) return null;
+              q = keepParams(search, ISSUES_PARAMS);
+              return q === null ? null : '/issues' + q;
+            case 'clients':
+              if (b === undefined) return '/clients';
+              return isId('c', b) ? '/clients/' + b : null;
+            case 'settings':
+              if (b === undefined) return '/settings/general';
+              return has(SETTINGS_SECTIONS, b) ? '/settings/' + b : null;
+            default:
+              return null;
+          }
+        }
+
+        // ---- the page
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var link = null;
+        function show() {
+          var raw = String(location.hash || '').replace(/^#/, '');
+          var route = raw ? parseDeepLink('lumina-mpp:/' + raw) : null;
+          link = route ? 'lumina-mpp:/' + route : null;
+          $('status').textContent = '';
+          if (!link) {
+            $('msg').textContent = 'This isn\u2019t a valid Lumina MPP link.';
+            $('open').hidden = true;
+            $('hint').hidden = true;
+            $('copyrow').hidden = true;
+            return;
+          }
+          $('msg').textContent = 'Opening Lumina MPP\u2026';
+          $('open').setAttribute('href', link);
+          $('open').hidden = false;
+          $('hint').hidden = false;
+          $('link').value = link;
+          $('copyrow').hidden = false;
+          location.href = link;
+        }
+        $('copy').addEventListener('click', function () {
+          if (!link) return;
+          var done = function () {
+            $('status').textContent = 'Link copied.';
+          };
+          var fallback = function () {
+            $('link').select();
+            try {
+              if (document.execCommand('copy')) return done();
+            } catch (e) {
+              /* fall through */
+            }
+            $('status').textContent = 'Select the link above and copy it.';
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(done, fallback);
+          } else fallback();
+        });
+        window.addEventListener('hashchange', show);
+        show();
+      })();
+    </script>
+  </body>
+</html>
