@@ -5,6 +5,9 @@
   stay in the URL fragment (#/p/…), which browsers never send to the server. It validates the fragment with a copy of
   parseDeepLink's rules (src/app/routes.ts + SPEC §4.9's chat / thread; src/app/openPage.test.ts keeps them in step),
   then forwards to lumina-mpp:/<route>, with a button (the Teams mobile browser needs a tap) and "Copy link".
+  v1.2.1: the project Chat tab (#/p/<pid>/chat) and its `post` param — a chat post's Copy link is
+  #/p/<pid>/chat?thread=…&post=<messageId>. Older chat links (#/p/<pid>/overview?chat=1…) are forwarded unchanged;
+  the app decides (MPP 1.2.1 opens them on the Chat tab). Copy this file to mpp-open at release (ADMIN_SETUP §L).
   The CSP allows only this file's own script and style, by hash; openPage.test.ts recomputes both hashes.
 -->
 <html lang="en">
@@ -12,7 +15,7 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'sha256-PFOMVuqUopkyJ+AbwA5skJP0efy6KOKDuIKeRC+NGyo='; style-src 'sha256-YtoOz2ZP+9V2SxRoCFgwqDfJmKDd/KHlL9gX6XuDG3E='; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'sha256-IW3Cri2ZDrBI53eG4SO+Ie8rgf5fiW2REV7s6tpfU5Q='; style-src 'sha256-YtoOz2ZP+9V2SxRoCFgwqDfJmKDd/KHlL9gX6XuDG3E='; base-uri 'none'; form-action 'none'"
     />
     <meta name="referrer" content="no-referrer" />
     <meta name="robots" content="noindex" />
@@ -137,7 +140,10 @@
         'use strict';
         // ---- a copy of parseDeepLink (src/app/routes.ts) + SPEC §4.9's chat / thread; openPage.test.ts compares them
         // (rev 1c C38: v1.1's Files tab, its params and Settings sections; chat / thread on /issues too)
-        var PROJECT_TABS = ['overview', 'timeline', 'steps', 'notes', 'issues', 'files', 'activity'];
+        // v1.2.1: the project's Chat tab and its `post` param (a chat post's Copy link). An older chat link (the
+        // panel's /p/<pid>/overview?chat=1…) is forwarded as it is: MPP 1.2.1 opens it on the Chat tab
+        // (routes.ts chatTabRedirect), an older MPP in the panel as before
+        var PROJECT_TABS = ['overview', 'timeline', 'steps', 'notes', 'issues', 'files', 'activity', 'chat'];
         var SETTINGS_SECTIONS = [
           'general',
           'templates',
@@ -196,6 +202,10 @@
           },
           chat: isChat,
           thread: isThread,
+          // v1.2.1: the Chat tab's linked post (Copy link on a chat message)
+          post: function (v) {
+            return /^\d{10,20}$/.test(v);
+          },
         };
         var ISSUES_PARAMS = {
           view: function (v) {
