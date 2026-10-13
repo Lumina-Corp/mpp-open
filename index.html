@@ -8,6 +8,8 @@
   v1.2.1: the project Chat tab (#/p/<pid>/chat) and its `post` param — a chat post's Copy link is
   #/p/<pid>/chat?thread=…&post=<messageId>. Older chat links (#/p/<pid>/overview?chat=1…) are forwarded unchanged;
   the app decides (MPP 1.2.1 opens them on the Chat tab). Copy this file to mpp-open at release (ADMIN_SETUP §L).
+  v1.3 (C0-lite's contract step, ADR 0010 A5 C14): the project's Fab tab (#/p/<pid>/fab) and the client page's live
+  Commercial tab (#/clients/<cid>/commercial with ?xero=<guid>&show=open|overdue|all&fy=YYYY) — the app's rules.
   The CSP allows only this file's own script and style, by hash; openPage.test.ts recomputes both hashes.
 -->
 <html lang="en">
@@ -15,7 +17,7 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'sha256-IW3Cri2ZDrBI53eG4SO+Ie8rgf5fiW2REV7s6tpfU5Q='; style-src 'sha256-YtoOz2ZP+9V2SxRoCFgwqDfJmKDd/KHlL9gX6XuDG3E='; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'sha256-ccHTS+VRQ6AWCOZf714gOhiTgGASVg4ffOfe0Qb7jkk='; style-src 'sha256-YtoOz2ZP+9V2SxRoCFgwqDfJmKDd/KHlL9gX6XuDG3E='; base-uri 'none'; form-action 'none'"
     />
     <meta name="referrer" content="no-referrer" />
     <meta name="robots" content="noindex" />
@@ -143,7 +145,10 @@
         // v1.2.1: the project's Chat tab and its `post` param (a chat post's Copy link). An older chat link (the
         // panel's /p/<pid>/overview?chat=1…) is forwarded as it is: MPP 1.2.1 opens it on the Chat tab
         // (routes.ts chatTabRedirect), an older MPP in the panel as before
-        var PROJECT_TABS = ['overview', 'timeline', 'steps', 'notes', 'issues', 'files', 'activity', 'chat'];
+        // v1.3: the Fab tab (the app lists it only where it shows and opens the Overview elsewhere) and the client
+        // page's LIVE tabs (only Commercial in v1.3) with their query
+        var PROJECT_TABS = ['overview', 'timeline', 'steps', 'notes', 'issues', 'files', 'activity', 'chat', 'fab'];
+        var LIVE_CLIENT_TABS = ['commercial'];
         var SETTINGS_SECTIONS = [
           'general',
           'templates',
@@ -206,7 +211,27 @@
           post: function (v) {
             return /^\d{10,20}$/.test(v);
           },
+          // v1.3 (SPEC-v1.3-po): a customer purchase order on the Overview's card
+          po: function (v) {
+            return isId('po', v);
+          },
         };
+        var CLIENT_PARAMS = {
+          xero: function (v) {
+            return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v);
+          },
+          show: function (v) {
+            return v === 'open' || v === 'overdue' || v === 'all';
+          },
+          fy: function (v) {
+            return /^[0-9]{4}$/.test(v);
+          },
+          po: function (v) {
+            return isId('po', v);
+          },
+        };
+        // v1.3 (SPEC-v1.3-po PA25): the client page itself (no tab) keeps only a customer PO
+        var CLIENT_PAGE_PARAMS = { po: CLIENT_PARAMS.po };
         var ISSUES_PARAMS = {
           view: function (v) {
             return ['triage', 'open', 'support', 'mine', 'resolved'].indexOf(v) >= 0;
@@ -275,6 +300,11 @@
             q = keepParams(search, PROJECT_PARAMS);
             return q === null ? null : '/p/' + b + '/' + tab + q;
           }
+          if (a === 'clients' && b !== undefined && c !== undefined) {
+            if (!isId('c', b) || !has(LIVE_CLIENT_TABS, c)) return null;
+            q = keepParams(search, CLIENT_PARAMS);
+            return q === null ? null : '/clients/' + b + '/' + c + q;
+          }
           if (c !== undefined) return null;
           switch (a) {
             case 'timeline':
@@ -288,7 +318,9 @@
               return q === null ? null : '/issues' + q;
             case 'clients':
               if (b === undefined) return '/clients';
-              return isId('c', b) ? '/clients/' + b : null;
+              if (!isId('c', b)) return null;
+              q = keepParams(search, CLIENT_PAGE_PARAMS);
+              return q === null ? null : '/clients/' + b + q;
             case 'settings':
               if (b === undefined) return '/settings/general';
               return has(SETTINGS_SECTIONS, b) ? '/settings/' + b : null;
